@@ -465,6 +465,65 @@ cron.schedule("45 9 * * 1-5", () => {
   }
 });
 
+app.event('app_home_opened', async ({ event, client }) => {
+  try {
+    await client.views.publish({
+      user_id: event.user,
+      view: {
+        type: 'home',
+        blocks: [
+          {
+            type: 'header',
+            text: { type: 'plain_text', text: '📋 Context Standup' }
+          },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: '*AI-powered standups from your real GitHub activity.*\nNo more typing from memory. Connect your GitHub account and let the agent do the work.'
+            }
+          },
+          { type: 'divider' },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: '*🚀 Quick Start*\n1. Run `/standup-connect github YOUR_USERNAME` to link GitHub\n2. Run `/standup` to get your AI draft\n3. Approve or edit, then post to the channel'
+            }
+          },
+          { type: 'divider' },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: '*⚡ Commands*\n`/standup` — Generate your personal standup draft\n`/standup-all` — Send drafts to everyone in the channel\n`/standup-connect github USERNAME` — Link your GitHub account'
+            }
+          },
+          { type: 'divider' },
+          {
+            type: 'section',
+            text: {
+              type: 'mrkdwn',
+              text: '*🔧 Powered by*\n• MCP Server with 3 GitHub tools\n• Real-Time Search API\n• Groq LLM (llama-3.3-70b)\n• Auto blocker detection'
+            }
+          },
+          {
+            type: 'context',
+            elements: [
+              {
+                type: 'mrkdwn',
+                text: 'Built for the Slack Agent Builder Challenge 2026 • Context Standup'
+              }
+            ]
+          }
+        ]
+      }
+    });
+  } catch (error) {
+    console.error('App home error:', error);
+  }
+});
+
 async function start() {
   try {
     await app.start();
