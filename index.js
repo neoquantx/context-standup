@@ -278,11 +278,48 @@ app.view("standup_modal_submit", async ({ ack, body, view, client }) => {
   }
 });
 
-async function triggerStandupForAll(channelId) {
+async function triggerStandupForAll(channelId, triggeringUserId = null) {
   try {
-    const membersResponse = await app.client.conversations.members({
-      channel: channelId
-    });
+    if (channelId.startsWith('D')) {
+      const dmMsg = "⚠️ `/standup-all` cannot be run in Direct Messages. Use `/standup` to generate a draft for yourself.";
+      console.error(dmMsg);
+      if (triggeringUserId) {
+        await app.client.chat.postEphemeral({
+          channel: channelId,
+          user: triggeringUserId,
+          text: dmMsg
+        });
+      }
+      return;
+    }
+
+    let membersResponse;
+    try {
+      membersResponse = await app.client.conversations.members({
+        channel: channelId
+      });
+    } catch (error) {
+      let friendlyError = "Failed to trigger standups.";
+      if (error.data && error.data.error === 'not_in_channel') {
+        friendlyError = `⚠️ The bot is not in this channel. Please invite the bot first by typing \`/invite\` and selecting this bot.`;
+        console.error(`Error: Bot is not in channel ${channelId}.`);
+      } else if (error.data && error.data.error === 'missing_scope') {
+        friendlyError = `⚠️ The bot lacks permission to list members for this channel. It needs the \`${error.data.needed}\` scope (e.g. \`groups:read\` for private channels/groups, or \`im:read\` for DMs).`;
+        console.error(`Error: Missing scope to fetch channel members. Needed: ${error.data.needed}`);
+      } else {
+        friendlyError = `⚠️ Error fetching channel members: ${error.message}`;
+        console.error(`Error fetching channel members for ${channelId}:`, error);
+      }
+      
+      if (triggeringUserId) {
+        await app.client.chat.postEphemeral({
+          channel: channelId,
+          user: triggeringUserId,
+          text: friendlyError
+        });
+      }
+      return;
+    }
     
     for (const userId of membersResponse.members) {
       const userInfo = await app.client.users.info({ user: userId });
@@ -404,13 +441,22 @@ async function triggerStandupForAll(channelId) {
 app.command("/standup-all", async ({ command, ack, client }) => {
   await ack();
   
+  if (command.channel_id.startsWith('D')) {
+    await client.chat.postEphemeral({
+      channel: command.channel_id,
+      user: command.user_id,
+      text: "⚠️ `/standup-all` cannot be run in Direct Messages. Use `/standup` to generate a draft for yourself."
+    });
+    return;
+  }
+
   await client.chat.postEphemeral({
     channel: command.channel_id,
     user: command.user_id,
     text: "🚀 Triggering standup drafts for everyone in this channel..."
   });
   
-  await triggerStandupForAll(command.channel_id);
+  await triggerStandupForAll(command.channel_id, command.user_id);
 });
 
 app.command('/standup-connect', async ({ command, ack, client }) => {
